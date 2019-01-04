@@ -1,0 +1,99 @@
+#!/usr/bin/perl
+use strict;
+use Getopt::Long;
+$| = 1;
+
+my $i = 0; # case sensitive by default
+my $h = 0; 
+my $filter = '.';
+my $usage = <<USAGE;
+USAGE: $0 <expression to search> [<directory list>, i.e. *, pwd is default]
+
+    Options: -h|--help                              show this usage
+             -i                                     search case insensitive
+             -e|-expression <regular expression>    filter input file names with this regular expression
+USAGE
+
+GetOptions('i' => \$i, 'e|expression:s' => \$filter, 'h' => \$h, '-help' => \$h);
+
+if ($h) {
+    print $usage; 
+    exit(0);
+}
+
+my $look = shift;
+$look =~ s/\s+$//;
+$look =~ s/ +/\\s+/g;
+if (!length($look)) {
+    print $usage;
+    exit(0);
+}
+
+my $exp = qr/$look/;
+
+if ($i) {
+    $exp = qr/$look/i;
+}
+
+$filter = qr/$filter/i;
+
+if ($#ARGV == -1) {
+    runFiles(getFiles('.'));
+}
+else {
+    runFiles(\@ARGV);
+}
+
+sub runFiles {
+    my $files = shift;
+    FILE: foreach my $file (@$files) {
+        $file =~ s/\/$//;
+
+        if (-d $file) {
+            my $things = getFiles($file);
+            runFiles($things) if ($#$things >= 0);
+        }
+        elsif (-T $file && $file =~ $filter) {
+            my @lines = ();
+            my $num = 1;
+            open(IN, " $file");
+            while(my $line = <IN>) {
+                $line =~ s/\s+$//;
+                $line =~ s/^\s+//;
+                if ($line =~ $exp) {
+                    $line =~ s/($exp)/\e[31m$1\e[0m/g;
+                    push(@lines,[$num,$line]);
+                }
+                $num++;
+            }
+            close IN;
+
+            if ($#lines >= 0) {
+                printf("%s\n",$file);
+                foreach my $line (@lines) {
+                    printf("\t%5d %s\n",@$line);
+                }
+                print "\n";
+            }
+        }
+    }
+}
+
+sub getFiles {
+    my $file = shift;
+    my $handle;
+    opendir($handle,$file);
+    my @stubs = readdir($handle);
+    closedir($handle);
+
+    my @things = ();
+       
+    foreach my $stub (@stubs) {
+        next if ($stub eq '.' || $stub eq '..');    
+        push(@things,($file.'/'.$stub));
+    }
+
+    return \@things;
+}
+
+exit(0);
