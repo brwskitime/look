@@ -11,10 +11,10 @@ USAGE: $0 <expression to search> [<directory list>, i.e. *, pwd is default]
 
     Options: -h|--help                              show this usage
              -i                                     search case insensitive
-             -e|-expression <regular expression>    filter input file names with this regular expression
+	     -f|-file <regular expression>          filter input file names with this regular expression
 USAGE
 
-GetOptions('i' => \$i, 'e|expression:s' => \$filter, 'h' => \$h, '-help' => \$h);
+GetOptions('i' => \$i, 'f|file:s' => \$filter, 'h' => \$h, '-help' => \$h);
 
 if ($h) {
     print $usage; 
@@ -48,6 +48,7 @@ sub runFiles {
     my $files = shift;
     FILE: foreach my $file (@$files) {
         $file =~ s/\/$//;
+	$file =~ s/^\.\///;
 
         if (-d $file) {
             my $things = getFiles($file);
@@ -61,7 +62,7 @@ sub runFiles {
                 $line =~ s/\s+$//;
                 $line =~ s/^\s+//;
                 if ($line =~ $exp) {
-                    $line =~ s/($exp)/\e[31m$1\e[0m/g;
+                    $line =~ s/($exp)/\e[1;32m$1\e[0m/g;
                     push(@lines,[$num,$line]);
                 }
                 $num++;
@@ -69,9 +70,9 @@ sub runFiles {
             close IN;
 
             if ($#lines >= 0) {
-                printf("%s\n",$file);
+                print $file;
                 foreach my $line (@lines) {
-                    printf("\t%5d %s\n",@$line);
+                    printf("\n\t%5d %s",@$line);
                 }
                 print "\n";
             }
